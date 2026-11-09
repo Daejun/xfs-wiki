@@ -62,7 +62,7 @@ direct write는 hole을 만나면 bio를 만들기 전에 unwritten extent로 �
 
 - I/O가 끝나면 `xfs_dio_write_end_io`가 `xfs_iomap_write_unwritten`으로 unwritten을 written으로 바꾸고, 같은 transaction에서 on-disk size와 in-core `i_size`를 올린다. 변환 범위는 block 단위로 올림한다. 변환 transaction은 [buffered write](18-buffered-write.md)의 변환과 같다.
 - 변환할 것이 없는 write가 EOF를 넘으면 `xfs_setfilesize`가 size만 올린다. 이미 written인 block에 EOF를 넘겨 쓴 경우가 그렇다.
-- in-core `i_size`는 변환이 끝난 뒤에 올린다. 먼저 올리면 동시에 도는 direct read가 아직 변환하지 않은 unwritten extent를 만나기 때문이다. XFS의 완료 주석에 이 순서의 이유가 적혀 있다.
+- in-core `i_size`는 변환하는 transaction 안에서 올린다. 먼저 올리면 동시에 도는 direct read가 아직 변환하지 않은 unwritten extent를 만나기 때문이다. XFS의 완료 주석에 이 순서의 이유가 적혀 있다. 다만 `xfs_iomap_write_unwritten`은 첫 transaction에서 `i_size`를 요청 범위 끝까지 올린다. loop 안에서 `offset_fsb + count_fsb`가 바뀌지 않기 때문이다. 그래서 write가 extent 여럿에 걸치면 남은 extent가 아직 unwritten일 때 `i_size`가 이미 올라 있고, 주석의 보장은 extent 하나일 때만 성립한다(code로만 확인). Dave Chinner의 "xfs: fix isize update in xfs_iomap_write_unwritten to track conversion progress"가 list에 나와 있다.
 - iomap은 완료 때 page cache를 한 번 더 비우는데, 이것도 `->end_io`(변환) 뒤에 한다. 주석에 따르면, 먼저 비우면 동시에 도는 buffered read가 unwritten의 0을 cache에 남긴다.
 - 동기 I/O에서는 `iomap_dio_complete`를 부른 task가 완료를 직접 처리한다. 52 KiB 예에서도 `xfs_end_io_direct_write`와 `xfs_unwritten_convert`가 `xfs_io` task에서 찍혔다. AIO이고 완료에 work가 필요하면 workqueue의 kworker에서 돈다(code로만 확인).
 

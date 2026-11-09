@@ -214,7 +214,7 @@ code: xfs_inode_item.c, xfs_inode.c, xfs_inode_buf.c
 - write verifier가 실제로 실패하는 경우. 쓰기 쪽 실패를 일부러 만드는 방법을 찾지 못했고, 관찰 image에 commit 때 검사를 하는 debug config가 있는지도 확인하지 못했다.
 - online fsck가 쓰는 in-memory buftarg(xfile 위의 btree)의 세부. 같은 cache code를 쓰고 bio만 건너뛴다는 설계 주석만 읽었다.
 - AGF 관찰에서 per-AG metadata reserve pool을 잡는 단계 안의 어느 호출이 AGF를 읽었는지.
-- xfs_db의 crc 줄에 붙는 `(correct)` 표시의 기준.
+- xfs_db의 crc 줄에 붙는 `(correct)` 표시의 기준. `(correct)`는 `b_error`가 `-EFSBADCRC`가 아니면 붙는다. xfs_db가 시작할 때 읽어 verifier에서 실패한 AGF, AGI는 cache에 남고, 다음 read가 `b_error`를 지운 채 돌려주므로 CRC가 틀려도 `(correct)`가 붙는다([on-disk 배치](04-on-disk-layout.md)의 한계점, xfsprogs code로만 확인).
 - freeze 때 inode buffer의 write 8번과 cluster flush 7번의 차이, `xfs_buf_delwri_queue` 19번과 buffer item push 17번의 차이, 그리고 inode cluster buffer 8개가 inode item push와 buffer item push 가운데 어느 쪽으로 쓰였는지.
 - file을 만드는 동안 inode cluster buffer가 `xfs_trans_log_buf`에 찍혔는지. 출력이 daddr별로 나뉘어 있지 않다.
 

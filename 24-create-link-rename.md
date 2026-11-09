@@ -202,7 +202,7 @@ code: xfs_inode.c, xfs_ialloc.c, xfs_iops.c, xfs_inode_util.c, xfs_trans.c
 - block, leaf, node 형식 directory의 addname이 directory block을 새로 할당할 때 같은 transaction에서 끝나는지, deferred operation이 생기는지.
 - attr intent로 미룬 parent pointer가 commit 때 몇 번 roll하는지. 큰 xattr가 있는 file의 link는 관찰하지 않았다.
 - security xattr나 ACL 설정이 실패해 create를 되돌리는 사이에 crash가 나면 무엇이 남는지.
-- whiteout inode의 부모로 target dir를 넘기는 의도.
+- whiteout inode의 부모로 target dir를 넘기는 의도. whiteout은 source dir에 놓이는데 projid, setgid gid, LSM label, AG를 target dir에서 받는다. whiteout을 들인 2015년 patch("xfs: add RENAME_WHITEOUT support")는 설명에서 ext4를 따른다고 하면서 target dir를 넘기고, 그 thread에 이유가 없다. ext4, btrfs, shmem, f2fs는 source dir를 넘긴다(code로만 확인). bug인지는 판정하지 않았다.
 - ICREATE log item을 log에서 직접 보는 방법(관찰하지 않음).
 - function_graph에서 `xfs_create` 10건이 빠진 이유. graph에는 file 이름이 없고 10건이 빠져 있어서, graph의 첫 roll(rmap intent를 처리한 roll)이 dummy20 뒤의 roll과 같은 것인지는 맞춰 보지 않았다.
 

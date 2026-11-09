@@ -289,7 +289,7 @@ ioend는 완료에 transaction이 필요하거나 irq context에서 할 수 없�
 
 iomap은 on-disk 크기를 쓰는 일을 filesystem에 맡긴다(code 주석에 따르면 되도록 I/O가 끝난 뒤에 쓴다). XFS는 data가 disk에 닿은 뒤에 올린다. 크기가 data보다 먼저 disk에 나가면 stale data가 드러날 수 있다. unwritten ioend면 변환 transaction이, 그 밖의 ioend(이미 written인 block, reflink의 COW, zoned)가 on-disk 크기를 넘기면 `xfs_setfilesize`가 올린다.
 
-`xfs_iomap_write_unwritten`은 범위를 extent mapping 하나마다 transaction 하나로 written으로 바꾸고, 변환 범위의 끝이 on-disk 크기를 넘으면(in-core `i_size` 안에서) 같은 transaction에서 on-disk 크기도 올린다. 넷째 인자는 in-core `i_size`를 함께 올릴지만 정한다. direct write의 완료는 참으로, writeback의 완료는 거짓으로 부른다. buffered write는 in-core `i_size`를 이미 올려 두었으므로 거짓이어도 on-disk 크기가 오른다.
+`xfs_iomap_write_unwritten`은 범위를 extent mapping 하나마다 transaction 하나로 written으로 바꾸고, 요청 범위의 끝(쓴 byte 끝으로 자름)이 on-disk 크기를 넘으면(in-core `i_size` 안에서) 첫 transaction에서 on-disk 크기를 그 끝까지 올린다. extent마다 그 extent의 끝까지 올리는 것이 아니다(code로만 확인, [direct I/O](19-direct-io-read.md)의 완료 절). 넷째 인자는 in-core `i_size`를 함께 올릴지만 정한다. direct write의 완료는 참으로, writeback의 완료는 거짓으로 부른다. buffered write는 in-core `i_size`를 이미 올려 두었으므로 거짓이어도 on-disk 크기가 오른다.
 
 ### direct I/O의 완료
 

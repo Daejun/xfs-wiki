@@ -249,7 +249,7 @@ XFS 고유 ioctl은 `'X'` magic을 쓰고 `xfs_file_ioctl` 한 함수에서 받�
 | debug |  | `XFS_IOC_ERROR_INJECTION`, `ERROR_CLEARALL` | `xfs_io -x -c inject` |
 
 - `XFS_IOC_GOINGDOWN`은 flag가 0이면 block device를 freeze한 뒤, 1이면 log를 flush한 뒤, 2이면 flush 없이 shutdown한다.
-- `XFS_IOC_DIOINFO`는 `STATX_DIOALIGN` 값을 돌려주지만 xfs_io 7.1.1에는 `dioinfo` 명령이 없다. error injection은 DEBUG build에서만 의미가 있다.
+- `XFS_IOC_DIOINFO`는 `STATX_DIOALIGN` 값을 돌려준다. xfs_io에 `dioinfo`라는 명령은 없지만, `stat`이 XFS에서 이 ioctl을 보내 `dioattr.mem`, `dioattr.miniosz`, `dioattr.maxiosz`를 찍는다([관찰 도구](02-observation-tools.md)의 원본 출력에 있다). error injection은 DEBUG build에서만 의미가 있다.
 - 폐기된 `XFS_IOC_ALLOCSP`(64)와 `FREESP`(64)는 경고를 한 번 낸 뒤 -ENOTTY를 돌려준다. fallocate를 쓴다.
 
 code: xfs_ioctl.c, xfs_handle.c, xfs_fsmap.c, xfs_discard.c

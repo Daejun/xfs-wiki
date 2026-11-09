@@ -97,7 +97,7 @@ code: xfs_file.c, fs/read_write.c
 
 XFS는 hardware offload가 더 빠를 것으로 보고 hardware 경로를 먼저 시도한다. 길이가 device의 atomic 최대(`bt_awu_max`)보다 길면 처음부터 COW 경로로 간다. hardware 경로가 `-ENOPROTOOPT`를 돌려주면 lock을 풀고 COW 경로로 다시 쓴다. 이 절의 동작은 code로만 확인했다.
 
-hardware 경로에서는 write 하나를 bio 하나로 보내야 한다. iomap은 `IOMAP_F_ATOMIC_BIO`를 붙인 mapping이 write 전체를 덮으면 bio에 `REQ_ATOMIC`을 세우고, 못 덮으면 EINVAL을 낸다. 그래서 XFS는 `xfs_direct_write_iomap_begin`에서 미리 걸러 `-ENOPROTOOPT`를 돌려준다. 이미 있는 mapping이 통과하려면 시작 disk block이 길이로 자연 정렬되어 있고, mapping 하나가 write 전체를 덮고, 길이가 `bt_awu_max` 이하여야 한다.
+hardware 경로에서는 write 하나를 bio 하나로 보내야 한다. iomap은 `IOMAP_F_ATOMIC_BIO`를 붙인 mapping이 write 전체를 덮으면 bio에 `REQ_ATOMIC`을 세우고, 못 덮으면 EINVAL을 낸다. 그래서 XFS는 `xfs_direct_write_iomap_begin`에서 미리 걸러 `-ENOPROTOOPT`를 돌려준다. 이미 있는 mapping이 통과하려면 시작 fsblock 번호(`br_startblock`, AG 번호를 담은 값)가 길이로 자연 정렬되어 있고, mapping 하나가 write 전체를 덮고, 길이가 `bt_awu_max` 이하여야 한다.
 
 reflink가 있는 4 KiB block file system에서 device의 atomic 최대가 16 KiB라면, atomic write는 이렇게 갈린다.
 
@@ -146,7 +146,7 @@ crash가 나면 recovery 뒤 data fork는 "write 전"이거나 "완료 뒤"다
 offset 128 KiB의 4 KiB write가 2608이 아니라 2624를 받았고 새 block의 시작(2592, 2624, 2656)이 32 block씩 떨어져 있어, COW fork를 32 block 단위로 잡는다는 추정과 맞는다.
 
 - `xfs_atomic_write_cow_iomap_begin`은 reflink가 없으면 EINVAL을 돌려준다. 주석에 따르면 이 경로는 늘 block을 할당하므로 NOWAIT이면 EAGAIN을 돌려준다. COW fork가 없으면 만들므로 reflink하지 않은 file도 COW fork를 쓴다.
-- COW fork에 이미 할당된 extent가 있으면 주석과 달리 할당 없이 write 범위로 잘라 쓴다. delalloc extent이면 이때 할당한다. 없으면 cowextsize hint에 맞춰 `tr_write` transaction에서 preallocation으로 잡는다. extent size로 정렬해 잡아 다음 atomic write가 정렬될 가능성을 높인다(주석).
+- COW fork에 이미 할당된 extent가 있으면 주석과 달리 할당 없이 write 범위로 잘라 쓴다. delalloc extent이면 이때 할당한다. 없으면 write 범위만이 아니라 다음 COW extent 앞까지(없으면 write 끝까지)의 빈칸 전체를 cowextsize hint에 맞춰 `tr_write` transaction에서 preallocation으로 잡는다(code로만 확인). extent size로 정렬해 잡아 다음 atomic write가 정렬될 가능성을 높인다(주석).
 - 잡은 extent가 unwritten이면 written으로 바꾸고 `IOMAP_F_SHARED`로 돌려준다. 그래서 iomap이 `IOMAP_DIO_COW`를 세운다.
 - I/O가 끝나면 `IOCB_ATOMIC`인 COW write는 `xfs_reflink_end_atomic_cow`로 간다. 보통의 COW 완료는 extent마다 transaction을 하나씩 쓰지만, 이 함수는 `tr_atomic_ioend` transaction 하나에서 범위 전체를 remap한다. 한계값 절의 `max_ioend`는 이 transaction 하나로 끝낼 수 있는 block 수다.
 

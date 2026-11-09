@@ -334,7 +334,7 @@ online repair가 실패하면 kernel과 man page(xfs_scrub(8)) 모두 xfs_repair
 
 - 3단계에서 고칠 수 없는 inode를 지우는 함수.
 - read-only mount에서 `xfs_repair -n`과 `-d`가 시작하는지, rmapbt나 refcountbt를 망가뜨렸을 때 `-n`이 보고하는지(관찰하지 않음).
-- finobt root를 0으로 쓴 손상에서 `-n`이 6, 7단계를 건너뛰지 않은 이유.
+- finobt root를 0으로 쓴 손상에서 `-n`이 6, 7단계를 건너뛰지 않은 이유. xfs_repair의 `bad_ino_btree`는 `scan_inobt`가 block을 읽다 문제를 볼 때만 선다. root block 번호가 틀리면 "bad agbno" 줄만 찍고 scan하지 않아 서지 않는다(xfsprogs v7.2.1 `repair/scan.c`, code로만 확인).
 - 깨끗한 image의 `xfs_scrub -n`에서 error -2가 어느 type에서 났는지.
 - 옛 B+tree block 회수와 제자리 repair(inode record, quota, AG header, counter)가 rmapbt를 요구하는지.
 - repair 모드에서 REPAIR 없는 두 번째 검사 항목을 xfs_scrub의 어느 단계가 보내는지, 같은 vector ioctl인지. 이 관찰에서는 `xchk_start`를 켜지 않았다.

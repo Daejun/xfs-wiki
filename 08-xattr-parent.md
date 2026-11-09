@@ -349,7 +349,7 @@ code: xfs_ioctl.c, xfs_handle.c, scrub/dir.c, scrub/parent.c, scrub/dirtree.c
 
 ### 도구에서 생긴 일
 
-- xfs_db의 `parent`는 shortform인 `moofile`, `two_0`에서 출력이 없었고, node인 `many0000`과 leaf인 `vlength`에서는 나왔다. xfsprogs v7.1.1 `db/namei.c`의 shortform 쪽 `list_sf_pptrs`가 값 위치를 `nameval + namelen`이 아니라 `nameval + valuelen`으로 잡는다(code로만 확인). 이름 길이(`moofile` 7, `two_0` 5 byte)가 값 길이 12 byte와 달라, 어긋난 값을 parent record 검사가 거절한 것으로 본다(추정, 고쳐 돌려 보지 않음).
+- xfs_db의 `parent`는 shortform인 `moofile`, `two_0`에서 출력이 없었고, node인 `many0000`과 leaf인 `vlength`에서는 나왔다. xfsprogs v7.1.1 `db/namei.c`의 shortform 쪽 `list_sf_pptrs`가 값 위치를 `nameval + namelen`이 아니라 `nameval + valuelen`으로 잡는다(code로만 확인). 이름 길이(`moofile` 7, `two_0` 5 byte)가 값 길이 12 byte와 달라, 어긋난 값을 parent record 검사가 거절한 것으로 본다(추정, 고쳐 돌려 보지 않음). xfsprogs for-next의 `850cb9654f6a` "xfs_db: read a shortform parent pointer's value after its name"가 이것을 고쳤다.
 - man `xfs_db.8`(v7.1.1)에는 `parent`가 "inode number, inode generation, ondisk namehash, namehash, name length, name"을 찍는다고 되어 있다. 그러나 `pptr_emit`는 `ino:gen namelen name`만 찍었다(`1048964:0x2f5f8cc5   8 many0093` 꼴).
 - 같은 man에는 `hash -p`가 "ascii case-insensitive일 때만 차이가 난다"고 되어 있다. 실제로는 kernel과 xfsprogs가 늘 parent inode 번호를 XOR해, parent inode가 0이 아니면 `hash -p`가 일반 hash와 달랐다.
 

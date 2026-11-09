@@ -73,7 +73,7 @@ code: xfs_ioctl.c, xfs_sb.c
 |---|---|---|---|
 | `bmap` | `XFS_IOC_GETBMAPX` | `xfs_getbmap` | 512 byte 단위. `-e`가 없으면 dirty data를 먼저 쓴다. `-c`(COW fork)는 DEBUG kernel에서만 된다 |
 | `fiemap` | `FS_IOC_FIEMAP` | `xfs_vn_fiemap` → `iomap_fiemap` | `-e`가 없으면 dirty data를 먼저 쓴다 |
-| `stat -v` | `fstat()`, `FS_IOC_FSGETXATTR` | `xfs_fileattr_get` → `xfs_fill_fsxattr` | ILOCK_SHARED를 잡고 in-core inode를 읽는다 |
+| `stat -v` | `fstat()`, `FS_IOC_FSGETXATTR` (XFS면 `XFS_IOC_FSGETXATTRA`, `XFS_IOC_DIOINFO`도) | `xfs_fileattr_get` → `xfs_fill_fsxattr` | ILOCK_SHARED를 잡고 in-core inode를 읽는다 |
 | `fsmap` | `FS_IOC_GETFSMAP` | `xfs_getfsmap` | rmapbt가 있고 호출자에게 CAP_SYS_ADMIN이 있으면 rmapbt를, 아니면 bnobt를 걷는다(관찰하지 않음) |
 
 **보기만 해도 writeback이 일어난다.** fsync 없이 64 KiB를 쓴 file `a`는 `bmap -e`에서 delalloc이었는데, `-e` 없이 `bmap`을 한 번 부르자 그 자리에서 writeback이 돌아 block이 할당됐다. 같이 쓴 file `b`에 `fiemap`을 불러도 같았다.
@@ -304,7 +304,6 @@ code: xfs_sysfs.c, xfs_stats.c, xfs_stats.h, xfs_trans_ail.c, xfs_error.c, xfs_s
 | 문서 | 문서의 설명 | code |
 |---|---|---|
 | man xfs_db(8) | `-r`에는 "required if the filesystem is mounted"라는 설명만 있고, mount 중에 읽은 값이 낡을 수 있다는 말은 없다 | `-r`이면 mount 검사 자체를 하지 않는다 |
-| xfs_super.c의 freeze 주석 | 둘째 단계에서 superblock을 log에 sync한다("sync the superblock to the log") | `xfs_fs_freeze`에는 그런 호출이 따로 없고, `xfs_log_cover` 안의 `xfs_sync_sb`가 그 일을 한다 |
 
 ## 기준 이후 변화
 

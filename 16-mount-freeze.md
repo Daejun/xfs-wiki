@@ -146,7 +146,7 @@ freeze는 log를 일부러 clean으로 닫지 않는다(주석: "dirty it in cas
 
 VFS의 `freeze_super`는 write와 page fault를 막고(`SB_FREEZE_WRITE`, `SB_FREEZE_PAGEFAULT`) `sync_filesystem`을 한 뒤 `SB_FREEZE_FS` 단계에서 `freeze_fs`를 부른다. XFS는 그보다 앞서, `SB_FREEZE_PAGEFAULT` 상태에서 `sync_filesystem`이 wait 1로 `sync_fs`를 부를 때 inodegc, blockgc, zone GC를 멈춘다. freeze 과정은 `SB_FREEZE_FS`를 켠 뒤에야 XFS를 다시 부르므로, inactivation과 freeze의 경합을 막으려면 이때 inodegc를 멈춰야 한다.
 
-- freeze: `xfs_fs_freeze`는 reserve pool의 크기를 적어 두고 reserve를 0으로 내린 뒤(`xfs_save_resvblks`) `xfs_log_quiesce`를 부른다. 실패하면 멈췄던 GC를 다시 켠다.
+- freeze: `xfs_fs_freeze`는 reserve pool의 크기를 적어 두고 reserve를 0으로 내린 뒤(`xfs_save_resvblks`) `xfs_log_quiesce`를 부른다. 실패하면 멈췄던 GC를 다시 켠다. GC를 멈춘 `xfs_fs_sync_fs` 뒤의 `sync_blockdev`가 실패해 freeze가 취소되는 경우는 XFS가 다시 불리지 않아 GC가 꺼진 채 남는다(code로만 확인).
 - thaw: `xfs_fs_unfreeze`는 적어 둔 크기로 reserve를 다시 잡고, log worker를 다시 queue하고, rw면 GC를 다시 켠다. log 자체는 건드리지 않는다.
 
 file 500개를 만든 뒤 freeze하고 thaw하면 log, disk의 superblock, 빈 block 수가 이렇게 바뀐다.

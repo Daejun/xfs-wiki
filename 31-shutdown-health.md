@@ -58,7 +58,7 @@ shutdown은 대부분 `xfs_do_force_shutdown`을 거치지만, log 쪽은 `xlog_
 | 시작 | 위 표의 대부분 | log write 실패, log reservation 초과, log recovery 실패, AIL에 없는 item을 지우려 함 |
 | dmesg | "<이유> (0x..) detected at ... Shutting down filesystem." | "Filesystem has been shut down due to log error (0x..)." |
 | `xfs_force_shutdown` tracepoint | 나온다 | 나오지 않는다 |
-| healthmon SHUTDOWN event | 나온다 | 나오지 않을 것이다(추정) |
+| healthmon SHUTDOWN event | 나온다 | 나오지 않는다. 보고는 `xfs_do_force_shutdown`에만 있고 `xlog_force_shutdown`에는 없다(code로만 확인) |
 
 `xfs_do_force_shutdown`은 mount의 shutdown bit을 test_and_set으로 세우므로 처음 한 번만 일한다. log를 닫을 때 이유에 LOG_IO_ERROR가 없고 log recovery 중도 아니면, 먼저 sync log force로 이미 commit된 transaction을 log에 쓴다. 그다음 flag만 보고 이유 문자열을 골라 alert를 찍는다. tracepoint, VFS 쪽 fs error 보고, healthmon SHUTDOWN event도 낸다.
 
@@ -240,7 +240,7 @@ runtime에는 sick을 세우는 곳이 수백 곳 있고, btree 쪽이 가장 �
 | directory inode 131203 (block owner 손상) | `touch`가 `Structure needs cleaning`으로 실패한 뒤 | 0, 1 | `directory: unhealthy`. AG 0은 not been collected |
 | 같은 directory | 다시 mount해 scrub한 뒤 | 1, 1 | directory와 parent pointers가 `unhealthy` |
 
-sick inode가 inactivation을 거치면 그 AG에 "이 AG의 inode 가운데 sick이 있었다"는 표시(`XFS_SICK_AG_INODES`)가 서서, inode가 cache에서 사라져도 흔적이 남는다. 그런데 inactivation은 unlink되었거나, COW fork에 block이 있거나, regular file이라 EOF 뒤에 풀 block이 있는 inode만 거친다. 그래서 unlink하지 않은 directory의 sick은 AG로 옮겨지지 않을 것이다(추정). unmount 때 AG, rtgroup, fs에 sick이 남아 있으면 "Uncorrected metadata errors detected; please run xfs_repair."를 찍는다(fs counters만이면 찍지 않는다). 위 예에서도 AG 1 superblock이 sick인 채 unmount했을 때는 이 경고가 찍혔고, directory inode만 sick일 때는 찍히지 않았다.
+sick inode가 inactivation을 거치면 그 AG에 "이 AG의 inode 가운데 sick이 있었다"는 표시(`XFS_SICK_AG_INODES`)가 서서, inode가 cache에서 사라져도 흔적이 남는다. 그런데 inactivation은 unlink되었거나, COW fork에 block이 있거나, regular file이라 EOF 뒤에 풀 block이 있는 inode만 거친다. 그래서 unlink하지 않은 directory의 sick은 AG로 옮겨지지 않는다. sick inode는 unmount 전에는 reclaim되지 않고, unmount 때 reclaim이 `i_sick`을 그냥 지운다(code로만 확인). unmount 때 AG, rtgroup, fs에 sick이 남아 있으면 "Uncorrected metadata errors detected; please run xfs_repair."를 찍는다(fs counters만이면 찍지 않는다). 위 예에서도 AG 1 superblock이 sick인 채 unmount했을 때는 이 경고가 찍혔고, directory inode만 sick일 때는 찍히지 않았다.
 
 fs counters가 sick이면 unmount record를 쓰지 않아, 다음 mount가 recovery 뒤 counter를 다시 센다. 다른 sick 표시 때문에 unmount 경고를 찍을 때는 이 표시를 먼저 지워 unmount record를 쓰게 하지만, 그 뒤 free inode 수가 할당된 inode 수보다 크면 다시 세워 쓰지 않는다(code로만 확인).
 

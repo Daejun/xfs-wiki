@@ -98,7 +98,7 @@ cache hit면 `xfs_iget_cache_hit`가 `i_flags`를 보고 가른다.
 | `i_ino`가 다르다(RCU free 중이거나 번호가 다시 할당됨) | 건너뛰고 -EAGAIN |
 | INEW, IRECLAIM, INACTIVATING 중 하나 | 건너뛰고 -EAGAIN |
 | NEED_INACTIVE이고 nlink 0 | -ENOENT. 지운 inode는 다시 잡지 않는다 |
-| NEED_INACTIVE이고 nlink > 0 | inodegc를 즉시 돌리게 하고 -EAGAIN. 기다리지는 않는다 |
+| NEED_INACTIVE이고 nlink > 0 | inodegc가 켜져 있으면 즉시 돌리게 하고 -EAGAIN. 기다리지는 않는다. freeze 중처럼 inodegc가 꺼져 있으면 밀지 않고 -EAGAIN만 돌려주며, `xfs_iget`가 `delay(1)` 뒤 다시 찾는다 |
 | IRECLAIMABLE | IRECLAIM을 켜고 recycle |
 | 그 밖(사용 중) | 참조를 잡고 돌려준다 |
 
@@ -208,7 +208,7 @@ transaction 예약, buffered write, zoned file system의 RT 공간 예약은 ENO
 |---|---|
 | mount | log recovery를 마무리하기 전에 켠다 |
 | unmount | unmount flush 안에서 끈다 |
-| freeze | `SB_FREEZE_PAGEFAULT` 단계의 `xfs_fs_sync_fs`에서 blockgc와 함께 끈다. thaw(`xfs_fs_unfreeze`) 때와 freeze가 도중에 실패했을 때, read-only가 아니면 다시 켠다 |
+| freeze | `SB_FREEZE_PAGEFAULT` 단계의 `xfs_fs_sync_fs`에서 blockgc와 함께 끈다. thaw(`xfs_fs_unfreeze`) 때와 `->freeze_fs`(`xfs_fs_freeze`)가 실패했을 때, read-only가 아니면 다시 켠다. 그 앞 단계인 `sync_filesystem`의 `sync_blockdev`가 실패해 freeze가 취소되면 XFS가 다시 불리지 않아 켜지지 않는다(code로만 확인) |
 | read-only remount | 끄고, rw로 돌아갈 때 켠다 |
 
 끌 때는 새로 넣는 inode가 work를 걸지 못하게 한 뒤, 그때까지 쌓인 list가 빌 때까지 worker를 돌린다. freeze 중에는 inodegc가 꺼져 있으므로, 마지막 참조를 놓은 inode는 NEED_INACTIVE로 list에 걸리기만 하고 on-disk의 unlinked list에 남는다. xfs_freeze man page에 따르면 그런 file은 thaw되거나 snapshot의 clean mount가 끝날 때까지 unlink되지 않는다. 열린 채 지운 file을 freeze 중에 닫았을 때도 `xfs_inodegc_queue` 없이 `xfs_inode_set_need_inactive`까지만 찍혔고, thaw 때 inodegc가 켜지자 곧이어 worker가 inactivation을 끝냈다. freeze 경로 전체는 [mount, unmount, freeze](16-mount-freeze.md)에 있다.
@@ -298,7 +298,7 @@ crash 뒤 recovery는 정상이면 사슬을 직접 고치지 않는다. inode�
 | 2 | 131328 | 131328에서 131264로 |
 | 3 | 131264 | 131264에서 NULLAGINO로 |
 
-recovery mount 동안 `xfs_iunlink_remove` event 400개(inode 하나에 두 줄)가 모두 이 kworker에서 찍혔고, mount를 한 task는 찍지 않았다. `xfs_inodegc_flush`, `xfs_inodegc_worker`, `xfs_inode_inactivating` event는 inode 수와 같게 200개씩 찍혔다.
+recovery mount 동안 `xfs_iunlink_remove` event 400개(inode 하나에 두 줄. inode를 두 번 빼는 것이 아니라 `xfs_iunlink_remove`와 그 안에서 부르는 `xfs_iunlink_remove_inode`가 같은 tracepoint를 찍는다)가 모두 이 kworker에서 찍혔고, mount를 한 task는 찍지 않았다. `xfs_inodegc_flush`, `xfs_inodegc_worker`, `xfs_inode_inactivating` event는 inode 수와 같게 200개씩 찍혔다.
 
 code: xfs_log_recover.c, xfs_log.c, xfs_inode.c, xfs_super.c
 
@@ -318,7 +318,7 @@ code: xfs_inode.c, xfs_inode.h, agheader_repair.c
 
 | 문서 | 문서의 설명 | code |
 |---|---|---|
-| xfs_icache.c의 `XFS_INODEGC_MAX_BACKLOG` 정의 위 주석 | "in each AG" | 비교하는 값은 CPU별 `items`이고, 바로 아래 함수 주석에도 "maximum allowable percpu backlog"라고 적혀 있다. 위 주석이 낡았을 것이다(추정) |
+| xfs_icache.c의 `XFS_INODEGC_MAX_BACKLOG` 정의 위 주석 | "in each AG" | 비교하는 값은 CPU별 `items`이고, 바로 아래 함수 주석에도 "maximum allowable percpu backlog"라고 적혀 있다. 위 주석이 낡았다. deferred inactivation patchset v8(2021-07)까지는 queue가 AG별이었고, "xfs: per-cpu deferred inode inactivation queues"(2021-08)에서 CPU별로 바뀌었는데 주석은 그대로 남았다 |
 
 ## 한계점
 
@@ -327,7 +327,7 @@ code: xfs_inode.c, xfs_inode.h, agheader_repair.c
 - recycle의 실제 발동. 관찰한 두 번 모두 miss였고 `xfs_iget_recycle` event는 나오지 않았다.
 - inodegc가 묶어서 처리하는 목적(cluster buffer를 덜 오가려는 것인지)과 도입 commit이 든 이유(이 machine의 kernel tree에는 history가 없다).
 - recovery 없이 unlinked inode가 disk에 남는 상황. 메시지에는 "unrecovered"라고만 나온다.
-- recovery mount의 `xfs_iget_miss`가 203개로 사슬의 inode 수(200)보다 3개 많은 까닭.
+- recovery mount의 `xfs_iget_miss`가 203개로 사슬의 inode 수(200)보다 3개 많은 까닭. `xfs_mountfs`가 recovery 2단계(`xfs_log_mount_finish`) 전에 root inode와 rt bitmap, rt summary inode를 읽어서 200 + 3이다. 관찰 image는 xfsprogs 7.1.1 기본 mkfs라 metadir가 없고, rt device가 없어도 superblock을 읽을 때 rtgroup 하나를 두므로(`sb_rgcount` = 1) `xfs_rtmount_inodes`가 `sb_rbmino`, `sb_rsumino`를 읽는다(code로만 확인, 출력에 ino가 없어 ino로 대조하지는 못함).
 - recovery가 `tr_clearagi` transaction을 냈는지.
 - 빈 file 200개를 지운 순서와 가운데 190개의 처리 순서.
 - 빈 file 200개를 지울 때 worker가 한 번만 돈 까닭(32개를 넘으면 지연 0으로 work를 거는데도).

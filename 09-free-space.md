@@ -286,7 +286,7 @@ code: xfs_mount.c, xfs_trans.c, xfs_alloc.c, xfs_fsops.c, xfs_super.c, xfs_sb.c,
 
 - inode32의 실제 배치. inode 번호가 32 bit를 넘으려면 file system이 대략 TB 단위로 커야 한다(4 KiB block, 512 byte inode).
 - 예약을 잡은 뒤 할당 단계에서 받은 ENOSPC의 처리. `xfs_iomap_write_direct`가 transaction을 취소하고 올리는 것만 code로 보았다.
-- `xfs_ag_resv_needed`의 switch에 `XFS_AG_RESV_AGFL`이 없다(AGFL은 default의 ASSERT로 간다). AGFL 보충 할당이 이 함수를 거치지 않는 경로인지.
+- `xfs_ag_resv_needed`의 switch에 `XFS_AG_RESV_AGFL`이 없다(AGFL은 default의 ASSERT로 간다). AGFL 보충 할당이 이 함수를 거치지 않는 경로인지. 거치지 않는다. `xfs_alloc_fix_freelist`가 `resv = XFS_AG_RESV_AGFL`로 `xfs_alloc_ag_vextent_size`를 바로 부르고 `xfs_alloc_space_available`을 타지 않는다(code로만 확인).
 - busy extent가 할당을 미루는 효과([해제의 흐름](23-free-flow.md)의 몫).
 - finobt block 수를 직접 읽는 일, 그리고 log가 든 AG의 ask를 log 길이를 빼지 않고 따로 계산해 AG 2의 값과 맞춰 보는 일.
 - EOF 뒤 예약을 `st_blocks` 말고 다른 방법으로 보는 일. 128 MiB 쓰기 뒤 writeback의 할당 event에는 64264 block이 찍혔는데 `bmap -vp`에는 32768 block만 나온다. 같은 EOF 경계 때문으로 보았지만(추정) EOF 뒤 몫을 따로 세어 맞추지 않았다.

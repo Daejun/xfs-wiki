@@ -258,7 +258,7 @@ code: xfs_log.c, xfs_mount.c, xfs_log_recover.c, xfs_defer.c, xfs_extfree_item.c
 |---|---|---|
 | xfs-documentation journaling_log.asciidoc의 `xfs_logprint` 예 | EFI와 EFD가 둘 다 log에 나온다 | 지금 kernel은 같은 checkpoint 안의 intent와 done을 whiteout해서 둘 다 쓰지 않는다. 문서의 예는 whiteout이 없던 kernel의 출력이다. |
 | 같은 문서의 log item type 표 | IUNLINK를 "Unknown?"으로만 둔다 | IUNLINK item은 log에 쓰이지 않고, `next_unlinked` 칸을 BUF로 log한다. |
-| 같은 문서 | realtime 판 intent의 절이 없다 | code에는 EFI_RT, RUI_RT, CUI_RT가 있다. |
+| 같은 문서의 log item type 표 | realtime 판 intent와 done의 행이 없다 | code에는 EFI_RT, EFD_RT, RUI_RT, RUD_RT, CUI_RT, CUD_RT가 있다. 문서의 EFI, EFD, RUI, RUD, CUI, CUD 절은 type 칸 설명에 realtime 값을 적어 두었다. |
 | man mkfs.xfs(8), xfsprogs 7.1.1 | parent pointer를 기본으로 만들지 않는다 | mkfs의 기본값 표에서는 parent pointer가 켜져 있고, 관찰한 mkfs 출력도 `parent=1`이었다. |
 
 ## 한계점

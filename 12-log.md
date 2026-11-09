@@ -333,7 +333,7 @@ code: xfs_log_format.h, xfs_log.c, xfs_log_recover.c, xfs_sysfs.c
 
 | 문서 | 문서의 설명 | code |
 |---|---|---|
-| xfs_log_priv.h의 log covering 주석 | 이미 할당된 공간에 쓰는 write는 transaction을 만들지 않는다. 그래서 EOF 너머 할당을 한 transaction이 log에 남은 채 오래 idle하다가 crash하면, recovery가 그 할당을 replay해서 뒤의 크기 변경을 되돌릴 수 있다. 상태를 바꾸는 곳으로 `xfs_sync`와 `xlog_state_clean_log`를 든다 | 두 함수는 tree에 없다. EOF를 늘리는 buffered write와 direct write는 모두 ioend에서 `xfs_setfilesize`로 on-disk 크기를 transaction에 log한다. v5의 recovery는 disk의 metadata LSN이 더 새로우면 replay를 건너뛴다. 그래서 그 시나리오는 막혀 있다(code로만 확인) |
+| xfs_log_priv.h의 log covering 주석 | 이미 할당된 공간에 쓰는 write는 transaction을 만들지 않는다. 그래서 EOF 너머 할당을 한 transaction이 log에 남은 채 오래 idle하다가 crash하면, recovery가 그 할당을 replay해서 뒤의 크기 변경을 되돌릴 수 있다. 상태를 바꾸는 곳으로 `xfs_sync`와 `xlog_state_clean_log`를 든다 | 두 함수는 tree에 없다. EOF를 늘리는 write는 완료 때 on-disk 크기를 transaction에 log한다. unwritten extent에 쓴 경우는 변환 transaction(`xfs_iomap_write_unwritten`)이 크기도 올리고, 그 밖의 경우는 `xfs_setfilesize`가 올린다. v5의 recovery는 disk의 metadata LSN이 더 새로우면 replay를 건너뛴다. 그래서 그 시나리오는 막혀 있다(code로만 확인) |
 
 ## 한계점
 

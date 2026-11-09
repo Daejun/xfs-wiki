@@ -292,7 +292,7 @@ code: xfs_buf.c, xfs_btree.c, xfs_alloc.c, xfs_ialloc.c, xfs_sb.c
 LSN은 log 안의 위치를 64-bit 값 하나로 나타낸다. 위 32 bit가 log cycle, 아래 32 bit가 log 안의 basic block(512 byte) 번호다(`CYCLE_LSN`, `BLOCK_LSN`). xfs_db는 이 값을 16진 하나로 찍고, sysfs의 `log_head_lsn`에는 "cycle:basic block" 꼴로 나온다. 예를 들어 xfs_db의 0x10000001c는 cycle 1, basic block 28이라 sysfs 형식으로 1:28이다.
 
 - 쓸 때는 write verifier가 buffer의 log item이 마지막으로 commit된 LSN(`bli_item.li_lsn`)을 넣는다.
-- 읽을 때는 block의 LSN이 지금 log head보다 앞서면 손상으로 본다(`xfs_log_check_lsn`). "Corruption warning: Metadata has LSN (%d:%d) ahead of current LSN (%d:%d)"를 찍고, NULL LSN은 통과하며 norecovery mount는 검사하지 않는다. AGF, AGI, AGFL, btree block의 read verifier가 이 검사를 부른다. short form btree block에서는 이 검사가 CRC 검사보다 앞서서, LSN이 틀려도 CRC error로 찍힌다.
+- 읽을 때는 block의 LSN이 지금 log head보다 앞서면 손상으로 본다(`xfs_log_check_lsn`). "Corruption warning: Metadata has LSN (%d:%d) ahead of current LSN (%d:%d)"를 찍고, NULL LSN은 통과하며 norecovery mount는 검사하지 않는다. AGF, AGI, AGFL, btree block의 read verifier가 이 검사를 부른다. btree block에서는 short form과 long form 모두 이 검사가 CRC 검사보다 앞서서, LSN이 틀려도 CRC error로 찍힌다.
 - superblock의 LSN은 log가 아직 없을 때 읽으므로 read verifier가 볼 수 없다. 대신 write verifier가 보고, mount 중에는 log tail을 찾은 직후 `xlog_recover`가 본다.
 - log recovery는 block에 적힌 LSN이 지금 replay하는 transaction의 LSN 이상이면 그 buffer를 건너뛴다. block의 UUID가 이 file system의 것이 아니면 낡은 block으로 보고 그냥 replay하고, v4는 늘 바로 replay한다. block에 LSN을 매기는 log의 동작은 [log](12-log.md)에 있다.
 
@@ -326,7 +326,7 @@ code: xfs_log_format.h, xfs_log.c, xfs_btree.c, xfs_buf_item_recover.c
 - AG 2에서 log가 끝나는 block 16390과 free extent가 시작하는 block 16397 사이의 6 block. AG 1처럼 AGFL이 가져간 것으로 보이지만 AG 2의 AGFL은 찍지 않았다.
 - 모르는 log_incompat bit가 있고 log가 clean할 때 ro mount와 ro → rw remount의 결과. rw mount만 돌렸다.
 - bnobt root의 owner와 cntbt root의 bno를 바꾼 두 시험에서 어느 검사가 잡았는지. 두 시험의 kernel log가 출력에 남지 않았다.
-- AGF의 CRC를 깬 뒤 xfs_db가 같은 block의 crc를 (correct)로 찍은 이유.
+- AGF의 CRC를 깬 뒤 xfs_db가 같은 block의 crc를 (correct)로 찍은 이유. xfs_db는 시작할 때 `libxfs_initialize_perag_data`로 모든 AG의 AGF와 AGI를 읽는다. 이때 verifier에서 실패한 buffer는 `libxfs_buf_relse`로 cache에 남는다(UPTODATE). 다음 read는 cache hit에서 `b_error`를 0으로 지우고 verifier를 다시 돌리지 않는다. `(correct)`는 `b_error`가 `-EFSBADCRC`가 아니면 붙으므로, 틀린 CRC에도 붙는다(xfsprogs v7.1.1 `db/init.c`, `libxfs/rdwr.c`, `db/io.h`, code로만 확인). 시작할 때 읽지 않는 block은 `(bad)`로 찍힌다. zoned 관찰의 rtsb가 그 예다.
 - block의 LSN이 log head보다 앞설 때의 경고.
 - logged xattr bit를 실제로 모르는 옛 kernel로 옮긴 disk. 모르는 bit(0x80000000)로만 흉내 냈다.
 

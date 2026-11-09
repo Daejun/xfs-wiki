@@ -524,7 +524,7 @@ code: xfs_bmap.c, xfs_inode_buf.c, xfs_dir2_sf.c, xfs_dir2_block.c, xfs_attr_lea
 ### 도구에서 생긴 일
 
 - 공통 예제 image에서 AGI의 count, freecount, level을 읽으려던 명령은 field 이름 `iblocks`를 찾지 못하고 멈춰 출력되지 않았다. 대신 superblock의 icount, ifree와 root block의 level을 썼다.
-- xfs_db가 낸 "Metadata corruption detected ... xfs_inobt block" 경고 둘은 stderr를 file 끝에 모은 출력이라 어느 실행이 냈는지 알 수 없다. finobt block의 sibling pointer field가 inobt type이고 btdump가 sibling을 따라가므로, AG 0 finobt를 btdump할 때 둘째와 셋째 leaf를 inobt verifier로 읽어 났을 것이다(추정).
+- xfs_db가 낸 "Metadata corruption detected ... xfs_inobt block" 경고 둘은 stderr를 file 끝에 모은 출력이라 어느 실행이 냈는지 알 수 없다. finobt block의 sibling pointer field가 inobt type이고 btdump가 sibling을 따라가므로, AG 0 finobt를 btdump할 때 둘째와 셋째 leaf를 inobt verifier로 읽어 났다. xfs_db의 finobt `leftsib`, `rightsib`, `bno` field가 `TYP_INOBT`로 선언되어 있고(xfsprogs v7.1.1 `db/btblock.c`), btdump는 `addr rightsib`로 다음 leaf로 간다(`db/btdump.c`). 관찰한 finobt는 leaf가 3개라 rightsib로 넘어간 leaf 둘에서 경고 둘이 났다(code로만 확인).
 
 ### 원본 출력
 

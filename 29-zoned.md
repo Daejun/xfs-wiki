@@ -64,7 +64,8 @@ mount는 zone마다 write pointer와 used를 읽어 상태를 정한다. write p
 | write pointer | used | 상태 |
 |---|---|---|
 | 0 | 0 | free zone(`XFS_RTG_FREE` mark) |
-| 중간 | 아무 값 | open zone으로 되살린다. hint는 `WRITE_LIFE_NOT_SET` |
+| 중간 | write pointer 이하 | open zone으로 되살린다. hint는 `WRITE_LIFE_NOT_SET` |
+| 아무 값 | write pointer나 zone 용량보다 큼, 또는 write pointer가 0인데 0이 아님 | 경고를 찍고 -EFSCORRUPTED로 mount가 실패한다(code로만 확인) |
 | 끝 | 0 | reset 전에 전원이 나간 것으로 보고 그 자리에서 reset |
 | 끝 | 1 이상, zone 크기보다 작음 | reclaimable(zone GC 후보) |
 

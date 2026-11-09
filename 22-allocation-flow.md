@@ -95,7 +95,7 @@ XFS는 목표 AG부터 차례로 검사해 통과한 첫 AG에서 검색하고 �
 1. AG마다 `xfs_alloc_fix_freelist`가 AGF를 잡고, 공간을 검사하고, AGFL을 채운다. 공간 검사에서는 보정한 longest가 `minlen + alignment - 1 + minalignslop` 이상이고 남은 free block이 필요한 양 이상인지를 본다. AGF를 못 잡거나 공간이 모자라면 그 AG를 건너뛴다.
 2. 통과한 AG에서 검색이 실패해도 다음 AG로 가지 않는다.
 3. 첫 순회는 TRYLOCK으로 하고 AG 0까지 돌아갈 수 있다. 아무 AG도 못 찾으면 lock을 기다리는 둘째 순회를 같은 AG에서 시작하는데, 이번에는 이 transaction이 AGF를 잡은 가장 높은 AG까지만 돌아간다. 두 순회 모두 시작 AG가 그 AG보다 낮지 않다. AG가 넷이고 AG 1의 AGF를 잡은 transaction이 목표 AG 2에 할당한다면, 첫 순회는 2, 3, 0, 1, 둘째 순회는 2, 3, 1 순서로 돈다.
-4. 그래도 실패하면 minlen을 요청의 최소(보통 1)로 낮춰 다시 한다. 그래도 안 되면 필요한 총량을 낮춰 AG 0부터 훑으며 transaction에 LOWMODE를 세운다(low space mode).
+4. 그래도 실패하면 minlen을 요청의 최소(보통 1)로 낮춰 다시 한다. 그래도 안 되면 필요한 총량을 낮춰 AG 0부터(transaction이 이미 AGF를 잡았으면 그 AG부터) 훑으며 transaction에 LOWMODE를 세운다(low space mode).
 
 AGF와 AGFL의 lock은 commit 때까지 잡혀 있다. 그래서 같은 transaction의 다음 할당(조건을 바꾼 재시도나 bmbt block 할당)이 더 낮은 번호의 AGF를 잡으면 ABBA deadlock이 될 수 있다(code 주석).
 

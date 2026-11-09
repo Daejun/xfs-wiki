@@ -294,7 +294,7 @@ code: xfs_sb.c, xfs_rtgroup.c, xfs_rtalloc.c, xfs_mount.c, xfs_metadir.c
 
 다음은 확인하지 못했다.
 
-- near 할당의 결과를 size 할당이 덮어쓰는 것이 의도인지, upstream에서 이후 바뀌었는지. 읽은 tree에서는 git history를 쓸 수 없었다.
+- near 할당의 결과를 size 할당이 덮어쓰는 것은 의도가 아니다. `fd048a1bb391` "xfs: rework the rtalloc fallback handling"(v6.12)에서 생긴 회귀이고, 고침 "xfs: keep successful near rt allocations"(Rik van Riel, 2026-11-04, `Fixes: fd048a1bb391`)가 list에 나와 있고 Christoph Hellwig와 Carlos Maiolino가 Reviewed-by를 주었다. 읽은 tree의 `xfs_rtallocate_rtg`는 near 할당이 성공해도 `error`가 0이라 size 할당을 이어서 부른다(code로만 확인). 본문의 "rtpick 순번은 올라갔지만 위치에는 반영되지 않았다"는 관찰이 이 증상이다.
 - rtgroup끼리 동시에 할당되는지. 동시성은 관찰하지 않았다.
 - rtgroup이 없을 때 해제한 rt 공간이 commit 전에 실제로 다시 할당되는지. busy extent가 없다는 것만 읽었다.
 - rt block 번호의 sparse 구멍과 접힌 disk 주소의 차이. 구멍이 없는 geometry라 bmap의 값이 어느 쪽인지 가르지 못했다.
